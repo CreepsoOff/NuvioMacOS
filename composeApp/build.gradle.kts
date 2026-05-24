@@ -262,11 +262,16 @@ kotlin {
             kotlin.srcDir(generatedRuntimeConfigDir)
         }
         val desktopMain by getting {
+            kotlin.srcDir(project.file("src/fullCommonMain/kotlin/com/nuvio/app/features/plugins"))
+            kotlin.srcDir(project.file("src/fullCommonMain/kotlin/com/nuvio/app/features/settings"))
+            kotlin.srcDir(project.file("src/fullCommonMain/kotlin/com/nuvio/app/features/trailer"))
             dependencies {
                 implementation(compose.desktop.currentOs)
                 implementation(libs.ktor.client.java)
                 implementation(libs.kotlinx.coroutines.swing)
                 implementation(libs.jna)
+                implementation(libs.quickjs.kt)
+                implementation(libs.ksoup)
             }
         }
         androidMain.dependencies {
@@ -347,6 +352,7 @@ compose.desktop {
             macOS {
                 dockName = "Nuvio"
                 iconFile.set(project.file("desktop-icons/nuvio.icns"))
+                jvmArgs("-Djna.library.path=\$APPDIR")
                 infoPlist {
                     extraKeysRawXml = """
                         <key>NSRequiresAquaSystemAppearance</key>
@@ -358,15 +364,6 @@ compose.desktop {
     }
 }
 
-val renameReleaseDmgArtifact = tasks.register<RenameReleaseDmgTask>("renameReleaseDmgArtifact") {
-    versionName.set(releaseAppVersionName)
-    dmgDirectory.set(layout.buildDirectory.dir("compose/binaries/main-release/dmg"))
-}
-
-tasks.matching { it.name == "packageReleaseDistributionForCurrentOS" || it.name == "packageReleaseDmg" }.configureEach {
-    finalizedBy(renameReleaseDmgArtifact)
-}
-
 val buildDesktopMpvBridge = tasks.register<Exec>("buildDesktopMpvBridge") {
     onlyIf { System.getProperty("os.name").contains("Mac", ignoreCase = true) }
     workingDir = rootProject.file("MPVKit")
@@ -374,6 +371,26 @@ val buildDesktopMpvBridge = tasks.register<Exec>("buildDesktopMpvBridge") {
     inputs.file(rootProject.file("MPVKit/Package.swift"))
     inputs.dir(rootProject.file("MPVKit/Sources/DesktopMPVBridge"))
     outputs.dir(rootProject.file("MPVKit/.build"))
+}
+
+val copyDesktopMpvBridgeToApp = tasks.register<Copy>("copyDesktopMpvBridgeToApp") {
+    dependsOn(buildDesktopMpvBridge)
+    dependsOn("createReleaseDistributable")
+    from(rootProject.file("MPVKit/.build/arm64-apple-macosx/release")) {
+        include("libDesktopMPVBridge.dylib")
+    }
+    into(layout.buildDirectory.dir("compose/binaries/main-release/app/Nuvio.app/Contents/app"))
+}
+
+val renameReleaseDmgArtifact = tasks.register<RenameReleaseDmgTask>("renameReleaseDmgArtifact") {
+    versionName.set(releaseAppVersionName)
+    dmgDirectory.set(layout.buildDirectory.dir("compose/binaries/main-release/dmg"))
+}
+
+tasks.matching { it.name == "packageReleaseDistributionForCurrentOS" || it.name == "packageReleaseDmg" }.configureEach {
+    dependsOn(buildDesktopMpvBridge)
+    dependsOn(copyDesktopMpvBridgeToApp)
+    finalizedBy(renameReleaseDmgArtifact)
 }
 
 tasks.matching { it.name == "run" || it.name == "desktopRun" }.configureEach {

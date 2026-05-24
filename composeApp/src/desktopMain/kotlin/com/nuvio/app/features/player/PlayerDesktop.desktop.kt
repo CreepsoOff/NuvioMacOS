@@ -1,6 +1,10 @@
 package com.nuvio.app.features.player
 
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.IntSize
 import com.nuvio.app.core.storage.ProfileScopedKey
 import com.nuvio.app.core.sync.decodeSyncBoolean
@@ -420,6 +424,19 @@ internal actual object PlayerSettingsStorage {
         DesktopPreferences.putStringSet(preferencesName, scopedKey(key), values)
     }
 }
+
+@Composable
+actual fun rememberPlayerDesktopHoverModifier(onReveal: () -> Unit): Modifier =
+    Modifier.pointerInput(Unit) {
+        awaitPointerEventScope {
+            while (true) {
+                val event = awaitPointerEvent(PointerEventPass.Initial)
+                if (event.type == PointerEventType.Move) {
+                    onReveal()
+                }
+            }
+        }
+    }
 
 @Composable
 actual fun LockPlayerToLandscape() = Unit

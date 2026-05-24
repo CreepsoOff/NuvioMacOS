@@ -28,6 +28,7 @@ object TraktAuthRepository {
     private const val BASE_URL = "https://api.trakt.tv"
     private const val AUTHORIZE_URL = "https://trakt.tv/oauth/authorize"
     private const val API_VERSION = "2"
+    internal const val REDIRECT_URI_OOB = "urn:ietf:wg:oauth:2.0:oob"
 
     private val log = Logger.withTag("TraktAuth")
     private val json = Json {
@@ -89,10 +90,35 @@ object TraktAuthRepository {
         return buildAuthorizationUrl(oauthState)
     }
 
+    fun startOobAuth(): String? {
+        ensureLoaded()
+        if (!hasRequiredCredentials()) {
+            publish(errorMessage = localizedString(Res.string.trakt_missing_credentials))
+            return null
+        }
+
+        val oauthState = generateOauthState()
+        authState = authState.copy(
+            pendingAuthorizationState = "oob_$oauthState",
+            pendingAuthorizationStartedAtMillis = TraktPlatformClock.nowEpochMs(),
+        )
+        persist()
+        publish(
+            statusMessage = null,
+            errorMessage = null,
+        )
+
+        return buildOobAuthorizationUrl(oauthState)
+    }
+
     fun pendingAuthorizationUrl(): String? {
         ensureLoaded()
-        val oauthState = authState.pendingAuthorizationState ?: return null
-        return buildAuthorizationUrl(oauthState)
+        val raw = authState.pendingAuthorizationState ?: return null
+        val state = raw.removePrefix("oob_")
+        if (raw.startsWith("oob_")) {
+            return buildOobAuthorizationUrl(state)
+        }
+        return buildAuthorizationUrl(state)
     }
 
     fun onCancelAuthorization() {
@@ -102,12 +128,35 @@ object TraktAuthRepository {
         publish(statusMessage = null, errorMessage = null)
     }
 
-    fun onCancelDeviceFlow() {
+    fun onCancelOobAuth() {
         onCancelAuthorization()
     }
 
     fun onAuthLaunchFailed(reason: String) {
         publish(errorMessage = reason)
+    }
+
+    fun submitOobCode(code: String) {
+        ensureLoaded()
+        if (code.isBlank()) {
+            publish(errorMessage = localizedString(Res.string.trakt_missing_auth_code))
+            return
+        }
+        scope.launch {
+            exchangeOobCode(code.trim())
+        }
+    }
+
+    private suspend fun exchangeOobCode(code: String) {
+        publish(isLoading = true, errorMessage = null)
+
+        exchangeAuthorizationCode(code = code, redirectUri = REDIRECT_URI_OOB)
+
+        if (authState.isAuthenticated) return
+
+        clearPendingAuthorization()
+        persist()
+        publish(isLoading = false, errorMessage = localizedString(Res.string.trakt_sign_in_complete_failed))
     }
 
     fun onAuthCallbackReceived(callbackUrl: String) {
@@ -228,16 +277,16 @@ object TraktAuthRepository {
             return
         }
 
-        exchangeAuthorizationCode(code)
+        exchangeAuthorizationCode(code = code, redirectUri = TraktConfig.REDIRECT_URI)
     }
 
-    private suspend fun exchangeAuthorizationCode(code: String) {
+    private suspend fun exchangeAuthorizationCode(code: String, redirectUri: String) {
         val body = json.encodeToString(
             TraktAuthorizationCodeRequest(
                 code = code,
                 clientId = TraktConfig.CLIENT_ID,
                 clientSecret = TraktConfig.CLIENT_SECRET,
-                redirectUri = TraktConfig.REDIRECT_URI,
+                redirectUri = redirectUri,
             ),
         )
 
@@ -405,6 +454,9 @@ object TraktAuthRepository {
             else -> TraktConnectionMode.DISCONNECTED
         }
 
+        val isOob = mode == TraktConnectionMode.AWAITING_APPROVAL &&
+            (authState.pendingAuthorizationState?.startsWith("oob_") == true)
+
         _isAuthenticated.value = authState.isAuthenticated
         _uiState.value = TraktAuthUiState(
             mode = mode,
@@ -415,6 +467,8 @@ object TraktAuthRepository {
             pendingAuthorizationStartedAtMillis = authState.pendingAuthorizationStartedAtMillis,
             statusMessage = statusMessage,
             errorMessage = errorMessage,
+            deviceUserCode = if (isOob) "oob" else null,
+            deviceVerificationUrl = if (isOob) REDIRECT_URI_OOB else null,
         )
     }
 
@@ -426,6 +480,14 @@ object TraktAuthRepository {
         val responseType = "code"
         val encodedClientId = TraktConfig.CLIENT_ID.encodeURLParameter()
         val encodedRedirectUri = TraktConfig.REDIRECT_URI.encodeURLParameter()
+        val encodedState = state.encodeURLParameter()
+        return "$AUTHORIZE_URL?response_type=$responseType&client_id=$encodedClientId&redirect_uri=$encodedRedirectUri&state=$encodedState"
+    }
+
+    private fun buildOobAuthorizationUrl(state: String): String {
+        val responseType = "code"
+        val encodedClientId = TraktConfig.CLIENT_ID.encodeURLParameter()
+        val encodedRedirectUri = REDIRECT_URI_OOB.encodeURLParameter()
         val encodedState = state.encodeURLParameter()
         return "$AUTHORIZE_URL?response_type=$responseType&client_id=$encodedClientId&redirect_uri=$encodedRedirectUri&state=$encodedState"
     }
@@ -443,6 +505,8 @@ object TraktAuthRepository {
         val nowSeconds = TraktPlatformClock.nowEpochMs() / 1_000L
         return nowSeconds >= (expiresAtSeconds - 60)
     }
+
+    private fun localizedString(resource: StringResource): String = runBlocking { getString(resource) }
 }
 
 @Serializable
@@ -494,4 +558,3 @@ private data class TraktUserDto(
 private data class TraktUserIdsDto(
     val slug: String? = null,
 )
-    private fun localizedString(resource: StringResource): String = runBlocking { getString(resource) }

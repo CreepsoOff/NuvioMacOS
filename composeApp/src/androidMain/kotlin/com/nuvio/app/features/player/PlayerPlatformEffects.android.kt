@@ -12,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.view.WindowCompat
@@ -76,6 +77,9 @@ actual fun ManagePlayerPictureInPicture(
         )
     }
 }
+
+@Composable
+actual fun rememberPlayerDesktopHoverModifier(onReveal: () -> Unit): Modifier = Modifier
 
 @Composable
 actual fun rememberPlayerGestureController(): PlayerGestureController? {

@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.IntSize
 import platform.Foundation.NSNotificationCenter
 import platform.MediaPlayer.MPVolumeView
@@ -50,6 +51,9 @@ actual fun ManagePlayerPictureInPicture(
     isPlaying: Boolean,
     playerSize: IntSize,
 ) = Unit
+
+@Composable
+actual fun rememberPlayerDesktopHoverModifier(onReveal: () -> Unit): Modifier = Modifier
 
 @Composable
 actual fun rememberPlayerGestureController(): PlayerGestureController? {

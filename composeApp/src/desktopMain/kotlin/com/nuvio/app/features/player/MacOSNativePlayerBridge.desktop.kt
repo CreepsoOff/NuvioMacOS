@@ -32,6 +32,11 @@ internal interface MacOSMPVBridgeLib : Library {
                     if (dylib.exists()) return dir.absolutePath
                 }
             }
+            val resourcesDir = System.getProperty("compose.application.resources.dir")
+            if (resourcesDir != null) {
+                val dylib = java.io.File(resourcesDir, "libDesktopMPVBridge.dylib")
+                if (dylib.exists()) return resourcesDir
+            }
             return null
         }
     }

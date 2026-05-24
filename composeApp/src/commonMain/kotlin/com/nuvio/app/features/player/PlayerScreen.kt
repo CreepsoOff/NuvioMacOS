@@ -177,6 +177,7 @@ fun PlayerScreen(
         val tbaLabel = stringResource(Res.string.compose_player_tba)
         val gestureController = rememberPlayerGestureController()
         var controlsVisible by rememberSaveable { mutableStateOf(true) }
+        var hoverRevealId by rememberSaveable { mutableStateOf(0) }
         var playerControlsLocked by rememberSaveable { mutableStateOf(false) }
         // Active playback state (mutable to support source/episode switching)
         var activeSourceUrl by rememberSaveable { mutableStateOf(sourceUrl) }
@@ -1311,7 +1312,7 @@ fun PlayerScreen(
             initialSeekApplied = true
         }
 
-        LaunchedEffect(controlsVisible, playbackSnapshot.isPlaying, playbackSnapshot.isLoading, errorMessage) {
+        LaunchedEffect(controlsVisible, hoverRevealId, playbackSnapshot.isPlaying, playbackSnapshot.isLoading, errorMessage) {
             if (!controlsVisible || !playbackSnapshot.isPlaying || playbackSnapshot.isLoading || errorMessage != null) {
                 return@LaunchedEffect
             }
@@ -1527,9 +1528,17 @@ fun PlayerScreen(
             }
         }
 
+        val desktopHoverModifier = rememberPlayerDesktopHoverModifier(
+            onReveal = {
+                controlsVisible = true
+                hoverRevealId++
+            }
+        )
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .then(desktopHoverModifier)
                 .onSizeChanged { layoutSize = it }
                 .pointerInput(layoutSize) {
                     detectTapGestures(

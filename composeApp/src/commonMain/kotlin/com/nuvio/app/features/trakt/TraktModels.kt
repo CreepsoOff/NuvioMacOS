@@ -33,6 +33,8 @@ data class TraktAuthUiState(
     val pendingAuthorizationStartedAtMillis: Long? = null,
     val statusMessage: String? = null,
     val errorMessage: String? = null,
+    val deviceUserCode: String? = null,
+    val deviceVerificationUrl: String? = null,
 )
 
 enum class TraktBrandAsset {

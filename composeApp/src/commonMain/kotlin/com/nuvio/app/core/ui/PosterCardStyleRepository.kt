@@ -51,7 +51,10 @@ object PosterCardStyleRepository {
 
     fun clearLocalState() {
         hasLoaded = false
-        _uiState.value = PosterCardStyleUiState()
+        _uiState.value = PosterCardStyleUiState(
+            widthDp = platformDefaultPosterCardWidthDp,
+            heightDp = (platformDefaultPosterCardWidthDp * 3) / 2,
+        )
     }
 
     fun setWidthDp(widthDp: Int) {
@@ -89,8 +92,12 @@ object PosterCardStyleRepository {
 
     fun resetToDefaults() {
         ensureLoaded()
-        if (_uiState.value == PosterCardStyleUiState()) return
-        _uiState.value = PosterCardStyleUiState()
+        val defaultState = PosterCardStyleUiState(
+            widthDp = platformDefaultPosterCardWidthDp,
+            heightDp = (platformDefaultPosterCardWidthDp * 3) / 2,
+        )
+        if (_uiState.value == defaultState) return
+        _uiState.value = defaultState
         persist()
     }
 
@@ -99,7 +106,10 @@ object PosterCardStyleRepository {
 
         val payload = PosterCardStyleStorage.loadPayload().orEmpty().trim()
         if (payload.isEmpty()) {
-            _uiState.value = PosterCardStyleUiState()
+            _uiState.value = PosterCardStyleUiState(
+                widthDp = platformDefaultPosterCardWidthDp,
+                heightDp = (platformDefaultPosterCardWidthDp * 3) / 2,
+            )
             return
         }
 

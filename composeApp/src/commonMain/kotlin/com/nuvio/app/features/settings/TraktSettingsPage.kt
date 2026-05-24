@@ -21,12 +21,14 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalUriHandler
@@ -37,6 +39,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.nuvio.app.core.build.AppFeaturePolicy
 import com.nuvio.app.features.library.LibrarySourceMode
 import com.nuvio.app.features.trakt.TraktAuthRepository
 import com.nuvio.app.features.trakt.TraktBrandAsset
@@ -628,42 +632,105 @@ private fun TraktConnectionCard(
             }
 
             TraktConnectionMode.AWAITING_APPROVAL -> {
-                Text(
-                    text = stringResource(Res.string.settings_trakt_finish_sign_in),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontWeight = FontWeight.Medium,
-                )
-                Text(
-                    text = stringResource(Res.string.settings_trakt_approval_redirect),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Button(
-                    onClick = {
-                        val authUrl = TraktAuthRepository.pendingAuthorizationUrl()
-                            ?: TraktAuthRepository.onConnectRequested()
-                        if (authUrl == null) return@Button
-                        runCatching { uriHandler.openUri(authUrl) }
-                            .onFailure {
-                                TraktAuthRepository.onAuthLaunchFailed(
-                                    it.message ?: failedOpenBrowserMessage,
+                if (uiState.deviceUserCode == "oob") {
+                    var oobCode by remember { mutableStateOf("") }
+                    Text(
+                        text = stringResource(Res.string.settings_trakt_finish_sign_in),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontWeight = FontWeight.Medium,
+                    )
+                    Text(
+                        text = stringResource(Res.string.settings_trakt_approval_redirect),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Button(
+                        onClick = {
+                            val authUrl = TraktAuthRepository.startOobAuth() ?: return@Button
+                            runCatching { uriHandler.openUri(authUrl) }
+                                .onFailure {
+                                    TraktAuthRepository.onAuthLaunchFailed(
+                                        it.message ?: failedOpenBrowserMessage,
+                                    )
+                                }
+                        },
+                        enabled = !uiState.isLoading,
+                    ) {
+                        Text(stringResource(Res.string.settings_trakt_open_login))
+                    }
+                    OutlinedTextField(
+                        value = oobCode,
+                        onValueChange = { oobCode = it },
+                        label = { Text("Paste authorization code") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !uiState.isLoading,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(
+                            onClick = { TraktAuthRepository.submitOobCode(oobCode) },
+                            enabled = oobCode.isNotBlank() && !uiState.isLoading,
+                        ) {
+                            if (uiState.isLoading) {
+                                CircularProgressIndicator(
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                    strokeWidth = 2.dp,
+                                    modifier = Modifier.size(18.dp),
                                 )
+                            } else {
+                                Text("Submit")
                             }
-                    },
-                    enabled = !uiState.isLoading,
-                ) {
-                    Text(stringResource(Res.string.settings_trakt_open_login))
-                }
-                Button(
-                    onClick = TraktAuthRepository::onCancelAuthorization,
-                    enabled = !uiState.isLoading,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        contentColor = MaterialTheme.colorScheme.onSurface,
-                    ),
-                ) {
-                    Text(stringResource(Res.string.action_cancel))
+                        }
+                        Button(
+                            onClick = TraktAuthRepository::onCancelOobAuth,
+                            enabled = !uiState.isLoading,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                contentColor = MaterialTheme.colorScheme.onSurface,
+                            ),
+                        ) {
+                            Text(stringResource(Res.string.action_cancel))
+                        }
+                    }
+                } else {
+                    Text(
+                        text = stringResource(Res.string.settings_trakt_finish_sign_in),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontWeight = FontWeight.Medium,
+                    )
+                    Text(
+                        text = stringResource(Res.string.settings_trakt_approval_redirect),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Button(
+                        onClick = {
+                            val authUrl = TraktAuthRepository.pendingAuthorizationUrl()
+                                ?: TraktAuthRepository.onConnectRequested()
+                            if (authUrl == null) return@Button
+                            runCatching { uriHandler.openUri(authUrl) }
+                                .onFailure {
+                                    TraktAuthRepository.onAuthLaunchFailed(
+                                        it.message ?: failedOpenBrowserMessage,
+                                    )
+                                }
+                        },
+                        enabled = !uiState.isLoading,
+                    ) {
+                        Text(stringResource(Res.string.settings_trakt_open_login))
+                    }
+                    Button(
+                        onClick = TraktAuthRepository::onCancelAuthorization,
+                        enabled = !uiState.isLoading,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            contentColor = MaterialTheme.colorScheme.onSurface,
+                        ),
+                    ) {
+                        Text(stringResource(Res.string.action_cancel))
+                    }
                 }
             }
 
@@ -673,26 +740,51 @@ private fun TraktConnectionCard(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                Button(
-                    onClick = {
-                        val authUrl = TraktAuthRepository.onConnectRequested() ?: return@Button
-                        runCatching { uriHandler.openUri(authUrl) }
-                            .onFailure {
-                                TraktAuthRepository.onAuthLaunchFailed(
-                                    it.message ?: failedOpenBrowserMessage,
-                                )
-                            }
-                    },
-                    enabled = uiState.credentialsConfigured && !uiState.isLoading,
-                ) {
-                    if (uiState.isLoading) {
-                        CircularProgressIndicator(
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            strokeWidth = 2.dp,
-                            modifier = Modifier.size(18.dp),
-                        )
-                    } else {
-                        Text(stringResource(Res.string.settings_trakt_connect))
+                if (AppFeaturePolicy.traktUsesDeviceAuth) {
+                    Button(
+                        onClick = {
+                            val authUrl = TraktAuthRepository.startOobAuth() ?: return@Button
+                            runCatching { uriHandler.openUri(authUrl) }
+                                .onFailure {
+                                    TraktAuthRepository.onAuthLaunchFailed(
+                                        it.message ?: failedOpenBrowserMessage,
+                                    )
+                                }
+                        },
+                        enabled = uiState.credentialsConfigured && !uiState.isLoading,
+                    ) {
+                        if (uiState.isLoading) {
+                            CircularProgressIndicator(
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                strokeWidth = 2.dp,
+                                modifier = Modifier.size(18.dp),
+                            )
+                        } else {
+                            Text(stringResource(Res.string.settings_trakt_connect))
+                        }
+                    }
+                } else {
+                    Button(
+                        onClick = {
+                            val authUrl = TraktAuthRepository.onConnectRequested() ?: return@Button
+                            runCatching { uriHandler.openUri(authUrl) }
+                                .onFailure {
+                                    TraktAuthRepository.onAuthLaunchFailed(
+                                        it.message ?: failedOpenBrowserMessage,
+                                    )
+                                }
+                        },
+                        enabled = uiState.credentialsConfigured && !uiState.isLoading,
+                    ) {
+                        if (uiState.isLoading) {
+                            CircularProgressIndicator(
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                strokeWidth = 2.dp,
+                                modifier = Modifier.size(18.dp),
+                            )
+                        } else {
+                            Text(stringResource(Res.string.settings_trakt_connect))
+                        }
                     }
                 }
                 if (!uiState.credentialsConfigured) {
