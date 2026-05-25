@@ -436,6 +436,9 @@
     <string name="settings_account_delete_account_description">Cela supprimera définitivement votre compte et toutes les données associées.</string>
     <string name="settings_account_delete_confirm_message">Cette action est irréversible. Toutes vos données, profils et historique de synchronisation seront définitivement supprimés.</string>
     <string name="settings_account_delete_confirm_title">Supprimer le compte ?</string>
+    <string name="settings_account_delete_all_data">Supprimer toutes les données locales</string>
+    <string name="settings_account_delete_all_data_confirm_title">Supprimer toutes les données ?</string>
+    <string name="settings_account_delete_all_data_confirm_message">Toutes les données locales, cache, réglages et contenu sauvegardé seront supprimés. Vous serez déconnecté.</string>
     <string name="settings_account_email">Adresse e-mail</string>
     <string name="settings_account_not_signed_in">Non connecté</string>
     <string name="settings_account_sign_out">Se déconnecter</string>

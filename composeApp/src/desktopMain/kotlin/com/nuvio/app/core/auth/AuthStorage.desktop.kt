@@ -1,19 +1,18 @@
 package com.nuvio.app.core.auth
 
-import com.nuvio.app.desktop.DesktopPreferences
+import com.nuvio.app.core.keychain.DesktopKeychain
 
 internal actual object AuthStorage {
-    private const val preferencesName = "nuvio_auth"
-    private const val anonymousUserIdKey = "anonymous_user_id"
+    private const val KEYCHAIN_KEY = "auth_anonymous_user_id"
 
     actual fun loadAnonymousUserId(): String? =
-        DesktopPreferences.getString(preferencesName, anonymousUserIdKey)
+        DesktopKeychain.get(KEYCHAIN_KEY)
 
     actual fun saveAnonymousUserId(userId: String) {
-        DesktopPreferences.putString(preferencesName, anonymousUserIdKey, userId)
+        DesktopKeychain.put(KEYCHAIN_KEY, userId)
     }
 
     actual fun clearAnonymousUserId() {
-        DesktopPreferences.remove(preferencesName, anonymousUserIdKey)
+        DesktopKeychain.remove(KEYCHAIN_KEY)
     }
 }

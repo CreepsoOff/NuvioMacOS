@@ -1,6 +1,13 @@
 package com.nuvio.app.core.storage
 
+import com.nuvio.app.core.keychain.DesktopKeychain
 import com.nuvio.app.desktop.DesktopPreferences
+import java.nio.file.Path
+import java.nio.file.Paths
+import kotlin.io.path.deleteExisting
+import kotlin.io.path.exists
+import kotlin.io.path.isDirectory
+import kotlin.io.path.listDirectoryEntries
 
 internal actual object PlatformLocalAccountDataCleaner {
     private val preferenceNames = listOf(
@@ -33,5 +40,36 @@ internal actual object PlatformLocalAccountDataCleaner {
 
     actual fun wipe() {
         preferenceNames.forEach(DesktopPreferences::clearNode)
+        DesktopKeychain.clearAll()
+        clearJavaPrefsSession()
+    }
+
+    fun fullWipe() {
+        wipe()
+        deleteDirectory(Paths.get(System.getProperty("user.home"), "Library", "Caches", "com.nuvio.app"))
+        deleteDirectory(Paths.get(System.getProperty("user.home"), "Library", "Caches", "Nuvio"))
+        deleteDirectory(Paths.get(System.getProperty("user.home"), "Library", "Containers", "com.nuvio.media"))
+        deleteDirectory(Paths.get(System.getProperty("user.home"), "Library", "Application Scripts", "com.nuvio.media"))
+        deleteDirectory(Paths.get(System.getProperty("user.home"), "Library", "HTTPStorages", "com.nuvio.app"))
+    }
+
+    private fun clearJavaPrefsSession() {
+        runCatching {
+            java.util.prefs.Preferences.userRoot().remove("sb-dpyhjjcoabcglfmgecug-supabase-co-session")
+            java.util.prefs.Preferences.userRoot().flush()
+        }
+    }
+
+    private fun deleteDirectory(path: Path) {
+        runCatching {
+            if (path.isDirectory()) {
+                path.listDirectoryEntries().forEach { child ->
+                    deleteDirectory(child)
+                }
+            }
+            if (path.exists()) {
+                path.deleteExisting()
+            }
+        }
     }
 }

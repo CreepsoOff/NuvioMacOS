@@ -1,19 +1,17 @@
 package com.nuvio.app.features.profiles
 
-import com.nuvio.app.desktop.DesktopPreferences
+import com.nuvio.app.core.keychain.DesktopKeychain
 
 internal actual object ProfilePinCacheStorage {
-    private const val preferencesName = "nuvio_profile_pin_cache"
-
     actual fun loadPayload(profileIndex: Int): String? =
-        DesktopPreferences.getString(preferencesName, payloadKey(profileIndex))
+        DesktopKeychain.get(payloadKey(profileIndex))
 
     actual fun savePayload(profileIndex: Int, payload: String) {
-        DesktopPreferences.putString(preferencesName, payloadKey(profileIndex), payload)
+        DesktopKeychain.put(payloadKey(profileIndex), payload)
     }
 
     actual fun removePayload(profileIndex: Int) {
-        DesktopPreferences.remove(preferencesName, payloadKey(profileIndex))
+        DesktopKeychain.remove(payloadKey(profileIndex))
     }
 
     private fun payloadKey(profileIndex: Int): String = "profile_pin_cache_$profileIndex"

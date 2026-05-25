@@ -1,0 +1,15 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "permission": {
+    "*": "allow",
+    "external_directory": {
+      "~/Library/Application Support/Nuvio/**": "allow",
+      "~/Library/Caches/com.nuvio.app/**": "allow",
+      "~/Library/Caches/Nuvio/**": "allow",
+      "~/Library/Containers/com.nuvio.media/**": "allow",
+      "~/Library/Application Scripts/com.nuvio.media/**": "allow",
+      "~/Library/HTTPStorages/com.nuvio.app/**": "allow",
+      "~/Library/Preferences/com.apple.java.util.prefs.plist": "allow"
+    }
+  }
+}

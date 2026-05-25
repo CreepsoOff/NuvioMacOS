@@ -1,5 +1,6 @@
 package com.nuvio.app.features.tmdb
 
+import com.nuvio.app.core.keychain.DesktopKeychain
 import com.nuvio.app.core.storage.ProfileScopedKey
 import com.nuvio.app.core.sync.decodeSyncBoolean
 import com.nuvio.app.core.sync.decodeSyncString
@@ -11,6 +12,7 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
 internal actual object TmdbSettingsStorage {
+    private const val KEYCHAIN_API_KEY = "tmdb_api_key"
     private const val preferencesName = "nuvio_tmdb_settings"
     private const val enabledKey = "tmdb_enabled"
     private const val apiKeyKey = "tmdb_api_key"
@@ -49,10 +51,11 @@ internal actual object TmdbSettingsStorage {
         saveBoolean(enabledKey, enabled)
     }
 
-    actual fun loadApiKey(): String? = loadString(apiKeyKey)
+    actual fun loadApiKey(): String? =
+        DesktopKeychain.get(KEYCHAIN_API_KEY)
 
     actual fun saveApiKey(apiKey: String) {
-        saveString(apiKeyKey, apiKey)
+        DesktopKeychain.put(KEYCHAIN_API_KEY, apiKey)
     }
 
     actual fun loadLanguage(): String? = loadString(languageKey)

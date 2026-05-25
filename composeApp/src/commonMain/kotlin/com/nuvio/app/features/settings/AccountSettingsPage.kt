@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nuvio.app.core.auth.AuthRepository
 import com.nuvio.app.core.auth.AuthState
+import com.nuvio.app.core.storage.PlatformLocalAccountDataCleaner
 import com.nuvio.app.core.ui.NuvioPrimaryButton
 import com.nuvio.app.core.ui.NuvioStatusModal
 import com.nuvio.app.core.ui.NuvioSurfaceCard
@@ -28,6 +29,9 @@ import kotlinx.coroutines.launch
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.action_cancel
 import nuvio.composeapp.generated.resources.compose_settings_page_account
+import nuvio.composeapp.generated.resources.settings_account_delete_all_data
+import nuvio.composeapp.generated.resources.settings_account_delete_all_data_confirm_message
+import nuvio.composeapp.generated.resources.settings_account_delete_all_data_confirm_title
 import nuvio.composeapp.generated.resources.settings_account_email
 import nuvio.composeapp.generated.resources.settings_account_not_signed_in
 import nuvio.composeapp.generated.resources.settings_account_sign_out
@@ -53,6 +57,7 @@ private fun AccountSettingsBody(
     val authState by AuthRepository.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     var showSignOutConfirm by remember { mutableStateOf(false) }
+    var showDeleteAllDataConfirm by remember { mutableStateOf(false) }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         NuvioSurfaceCard {
@@ -120,6 +125,11 @@ private fun AccountSettingsBody(
             text = stringResource(Res.string.settings_account_sign_out),
             onClick = { showSignOutConfirm = true },
         )
+
+        NuvioPrimaryButton(
+            text = stringResource(Res.string.settings_account_delete_all_data),
+            onClick = { showDeleteAllDataConfirm = true },
+        )
     }
 
     NuvioStatusModal(
@@ -133,5 +143,21 @@ private fun AccountSettingsBody(
             scope.launch { AuthRepository.signOut() }
         },
         onDismiss = { showSignOutConfirm = false },
+    )
+
+    NuvioStatusModal(
+        title = stringResource(Res.string.settings_account_delete_all_data_confirm_title),
+        message = stringResource(Res.string.settings_account_delete_all_data_confirm_message),
+        isVisible = showDeleteAllDataConfirm,
+        confirmText = stringResource(Res.string.settings_account_delete_all_data),
+        dismissText = stringResource(Res.string.action_cancel),
+        onConfirm = {
+            showDeleteAllDataConfirm = false
+            scope.launch {
+                AuthRepository.signOut()
+                PlatformLocalAccountDataCleaner.wipe()
+            }
+        },
+        onDismiss = { showDeleteAllDataConfirm = false },
     )
 }

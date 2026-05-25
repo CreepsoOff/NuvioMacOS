@@ -15,15 +15,16 @@ import nuvio.composeapp.generated.resources.trakt_logo_wordmark
 import nuvio.composeapp.generated.resources.trakt_tv_favicon
 import org.jetbrains.compose.resources.painterResource
 
+import com.nuvio.app.core.keychain.DesktopKeychain
+
 internal actual object TraktAuthStorage {
-    private const val preferencesName = "nuvio_trakt_auth"
-    private const val payloadKey = "trakt_auth_payload"
+    private const val KEYCHAIN_KEY = "trakt_auth_payload"
 
     actual fun loadPayload(): String? =
-        DesktopPreferences.getString(preferencesName, ProfileScopedKey.of(payloadKey))
+        DesktopKeychain.get(KEYCHAIN_KEY)
 
     actual fun savePayload(payload: String) {
-        DesktopPreferences.putString(preferencesName, ProfileScopedKey.of(payloadKey), payload)
+        DesktopKeychain.put(KEYCHAIN_KEY, payload)
     }
 }
 

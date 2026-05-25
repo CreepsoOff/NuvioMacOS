@@ -6,6 +6,7 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.IntSize
+import com.nuvio.app.core.keychain.DesktopKeychain
 import com.nuvio.app.core.storage.ProfileScopedKey
 import com.nuvio.app.core.sync.decodeSyncBoolean
 import com.nuvio.app.core.sync.decodeSyncFloat
@@ -55,6 +56,8 @@ internal actual object PlayerSettingsStorage {
     private const val streamAutoPlayTimeoutSecondsKey = "stream_auto_play_timeout_seconds"
     private const val skipIntroEnabledKey = "skip_intro_enabled"
     private const val animeSkipEnabledKey = "animeskip_enabled"
+    private const val KEYCHAIN_ANIMESKIP_CLIENT_ID = "animeskip_client_id"
+    private const val KEYCHAIN_INTRODB_API_KEY = "introdb_api_key"
     private const val animeSkipClientIdKey = "animeskip_client_id"
     private const val introDbApiKeyKey = "introdb_api_key"
     private const val introSubmitEnabledKey = "intro_submit_enabled"
@@ -249,16 +252,18 @@ internal actual object PlayerSettingsStorage {
         saveBoolean(animeSkipEnabledKey, enabled)
     }
 
-    actual fun loadAnimeSkipClientId(): String? = loadString(animeSkipClientIdKey)
+    actual fun loadAnimeSkipClientId(): String? =
+        DesktopKeychain.get(KEYCHAIN_ANIMESKIP_CLIENT_ID)
 
     actual fun saveAnimeSkipClientId(clientId: String) {
-        saveString(animeSkipClientIdKey, clientId)
+        DesktopKeychain.put(KEYCHAIN_ANIMESKIP_CLIENT_ID, clientId)
     }
 
-    actual fun loadIntroDbApiKey(): String? = loadString(introDbApiKeyKey)
+    actual fun loadIntroDbApiKey(): String? =
+        DesktopKeychain.get(KEYCHAIN_INTRODB_API_KEY)
 
     actual fun saveIntroDbApiKey(apiKey: String) {
-        saveString(introDbApiKeyKey, apiKey)
+        DesktopKeychain.put(KEYCHAIN_INTRODB_API_KEY, apiKey)
     }
 
     actual fun loadIntroSubmitEnabled(): Boolean? = loadBoolean(introSubmitEnabledKey)
