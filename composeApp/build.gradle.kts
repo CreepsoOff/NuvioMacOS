@@ -382,19 +382,63 @@ val copyDesktopMpvBridgeToApp = tasks.register<Copy>("copyDesktopMpvBridgeToApp"
     into(layout.buildDirectory.dir("compose/binaries/main-release/app/Nuvio.app/Contents/app"))
 }
 
+val buildNuvioNotifyDylib = tasks.register<Exec>("buildNuvioNotifyDylib") {
+    onlyIf { System.getProperty("os.name").contains("Mac", ignoreCase = true) }
+    val javaHome = System.getProperty("java.home")
+    val sourceFile = rootProject.file("composeApp/src/desktopMain/native/NativeNotifications.m")
+    val outputDir = layout.buildDirectory.dir("native/nuvio-notify").get().asFile
+    val arm = File(outputDir, "libnuvio-notify-arm64.dylib")
+    val x86 = File(outputDir, "libnuvio-notify-x86_64.dylib")
+    val uni = File(outputDir, "libnuvio-notify.dylib")
+    val script = """set -e
+mkdir -p "${outputDir.absolutePath}"
+xcrun clang -shared -arch arm64 -I "$javaHome/include" -I "$javaHome/include/darwin" -fobjc-arc -framework Foundation -framework UserNotifications -o "${arm.absolutePath}" "${sourceFile.absolutePath}"
+xcrun clang -shared -arch x86_64 -I "$javaHome/include" -I "$javaHome/include/darwin" -fobjc-arc -framework Foundation -framework UserNotifications -o "${x86.absolutePath}" "${sourceFile.absolutePath}"
+lipo -create -output "${uni.absolutePath}" "${arm.absolutePath}" "${x86.absolutePath}"
+rm -f "${arm.absolutePath}" "${x86.absolutePath}"
+"""
+    commandLine("bash", "-c", script)
+    inputs.file(sourceFile)
+    outputs.file(uni)
+}
+
+val copyNotifyDylibToApp = tasks.register<Copy>("copyNotifyDylibToApp") {
+    dependsOn(buildNuvioNotifyDylib)
+    dependsOn("createDistributable")
+    from(layout.buildDirectory.dir("native/nuvio-notify")) {
+        include("libnuvio-notify.dylib")
+    }
+    into(layout.buildDirectory.dir("compose/binaries/main/app/Nuvio.app/Contents/app"))
+}
+
+val copyNotifyDylibToReleaseApp = tasks.register<Copy>("copyNotifyDylibToReleaseApp") {
+    dependsOn(buildNuvioNotifyDylib)
+    dependsOn("createReleaseDistributable")
+    from(layout.buildDirectory.dir("native/nuvio-notify")) {
+        include("libnuvio-notify.dylib")
+    }
+    into(layout.buildDirectory.dir("compose/binaries/main-release/app/Nuvio.app/Contents/app"))
+}
+
 val renameReleaseDmgArtifact = tasks.register<RenameReleaseDmgTask>("renameReleaseDmgArtifact") {
     versionName.set(releaseAppVersionName)
     dmgDirectory.set(layout.buildDirectory.dir("compose/binaries/main-release/dmg"))
 }
 
+tasks.matching { it.name == "packageDistributionForCurrentOS" || it.name == "packageDmg" }.configureEach {
+    dependsOn(copyNotifyDylibToApp)
+}
+
 tasks.matching { it.name == "packageReleaseDistributionForCurrentOS" || it.name == "packageReleaseDmg" }.configureEach {
     dependsOn(buildDesktopMpvBridge)
     dependsOn(copyDesktopMpvBridgeToApp)
+    dependsOn(copyNotifyDylibToReleaseApp)
     finalizedBy(renameReleaseDmgArtifact)
 }
 
 tasks.matching { it.name == "run" || it.name == "desktopRun" }.configureEach {
     dependsOn(buildDesktopMpvBridge)
+    dependsOn(buildNuvioNotifyDylib)
 }
 
 configurations.all {

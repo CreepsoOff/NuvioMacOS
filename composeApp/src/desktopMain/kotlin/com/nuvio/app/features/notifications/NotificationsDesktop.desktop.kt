@@ -4,6 +4,8 @@ import com.nuvio.app.core.storage.ProfileScopedKey
 import com.nuvio.app.desktop.DesktopPreferences
 import java.time.Instant
 import java.time.ZoneId
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 internal actual object EpisodeReleaseNotificationsStorage {
     private const val preferencesName = "nuvio_episode_release_notifications"
@@ -18,15 +20,71 @@ internal actual object EpisodeReleaseNotificationsStorage {
 }
 
 internal actual object EpisodeReleaseNotificationPlatform {
-    actual suspend fun notificationsAuthorized(): Boolean = true
+    private const val scheduledIdsKey = "episode_release_notification_scheduled_ids"
 
-    actual suspend fun requestAuthorization(): Boolean = true
+    actual suspend fun notificationsAuthorized(): Boolean {
+        return runCatching { NativeNotifications.check() }.getOrDefault(false)
+    }
 
-    actual suspend fun scheduleEpisodeReleaseNotifications(requests: List<EpisodeReleaseNotificationRequest>) = Unit
+    actual suspend fun requestAuthorization(): Boolean {
+        return runCatching { NativeNotifications.requestAuthorization() }.getOrDefault(false)
+    }
 
-    actual suspend fun clearScheduledEpisodeReleaseNotifications() = Unit
+    actual suspend fun scheduleEpisodeReleaseNotifications(requests: List<EpisodeReleaseNotificationRequest>) {
+        withContext(Dispatchers.IO) {
+            NativeNotifications.clear()
+            if (requests.isEmpty()) return@withContext
 
-    actual suspend fun showTestNotification(request: EpisodeReleaseNotificationRequest) = Unit
+            val json = buildScheduleJson(requests)
+            NativeNotifications.scheduleFromJson(json)
+
+            val ids = requests.map { it.requestId }
+            DesktopPreferences.putString(
+                namespace = "episode_release_notifications",
+                key = ProfileScopedKey.of(scheduledIdsKey),
+                value = ids.joinToString("|"),
+            )
+        }
+    }
+
+    actual suspend fun clearScheduledEpisodeReleaseNotifications() {
+        withContext(Dispatchers.IO) {
+            NativeNotifications.clear()
+        }
+    }
+
+    actual suspend fun showTestNotification(request: EpisodeReleaseNotificationRequest) {
+        withContext(Dispatchers.IO) {
+            NativeNotifications.show(
+                title = request.notificationTitle,
+                body = request.notificationBody,
+                deepLink = request.deepLinkUrl.takeIf { it.isNotBlank() },
+                backdropUrl = request.backdropUrl?.takeIf { it.isNotBlank() },
+            )
+        }
+    }
+
+    private fun buildScheduleJson(requests: List<EpisodeReleaseNotificationRequest>): String {
+        val sb = StringBuilder("[")
+        requests.forEachIndexed { i, r ->
+            if (i > 0) sb.append(",")
+            sb.append("{\"id\":\"${escapeJson(r.requestId)}\",\"title\":\"${escapeJson(r.notificationTitle)}\",\"body\":\"${escapeJson(r.notificationBody)}\",\"dateIso\":\"${r.releaseDateIso}\"")
+            if (r.deepLinkUrl.isNotBlank()) {
+                sb.append(",\"deepLink\":\"${escapeJson(r.deepLinkUrl)}\"")
+            }
+            val backdrop = r.backdropUrl?.takeIf { it.isNotBlank() }
+            if (backdrop != null) {
+                sb.append(",\"backdropUrl\":\"${escapeJson(backdrop)}\"")
+            }
+            sb.append("}")
+        }
+        sb.append("]")
+        return sb.toString()
+    }
+
+    private fun escapeJson(s: String): String =
+        s.replace("\\", "\\\\").replace("\"", "\\\"")
+            .replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t")
 }
 
 internal actual object EpisodeReleaseNotificationsClock {
